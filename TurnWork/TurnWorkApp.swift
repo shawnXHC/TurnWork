@@ -12,7 +12,10 @@ import SwiftData
 struct TurnWorkApp: App {
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
-            Item.self,
+            Event.self,
+            ShiftType.self,
+            ShiftCycle.self,
+            ShiftDailySetting.self
         ])
         let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
 
@@ -25,8 +28,9 @@ struct TurnWorkApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            MainTabView()
         }
         .modelContainer(sharedModelContainer)
     }
 }
+
