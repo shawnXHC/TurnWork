@@ -7,8 +7,12 @@ struct ShiftScheduleView: View {
     @Query private var cycles: [ShiftCycle]
     
     @State private var showingAddShiftType = false
+    @State private var showingCycleOptions = false
+    @State private var selectedCycle: ShiftCycle?
+    @State private var showingDeleteAlert = false
     @State private var days = 5
     @State private var startDate = Date()
+    @State private var cycleName = "默认周期"
     @State private var dailyShifts: [ShiftDailySetting] = []
     
     var activeCycle: ShiftCycle? {
@@ -17,7 +21,49 @@ struct ShiftScheduleView: View {
     
     var body: some View {
         List {
+            // 现有周期选择
             Section {
+                HStack {
+                    Text("排班周期")
+                    Spacer()
+                    Menu {
+                        ForEach(cycles) { cycle in
+                            Button(action: {
+                                loadCycle(cycle)
+                            }) {
+                                HStack {
+                                    Text(cycle.name)
+                                    if cycle.isActive {
+                                        Image(systemName: "checkmark")
+                                    }
+                                }
+                            }
+                        }
+                        
+                        Divider()
+                        
+                        Button(role: .destructive, action: {
+                            showingDeleteAlert = true
+                        }) {
+                            Label("删除当前周期", systemImage: "trash")
+                        }
+                        .disabled(activeCycle == nil)
+                    } label: {
+                        HStack {
+                            Text(activeCycle?.name ?? "新建周期")
+                                .foregroundColor(.primary)
+                            Image(systemName: "chevron.up.chevron.down")
+                                .font(.caption)
+                                .foregroundColor(.gray)
+                        }
+                    }
+                }
+            }
+            
+            // 周期设置
+            Section {
+                TextField("周期名称", text: $cycleName)
+                
                 HStack {
                     Text("循环天数")
                     Spacer()
@@ -30,6 +76,7 @@ struct ShiftScheduleView: View {
                 DatePicker("开始日期", selection: $startDate, displayedComponents: .date)
             }
             
+            // 班次类型管理
             Section("班次类型") {
                 ForEach(shiftTypes) { shift in
                     HStack {
@@ -41,6 +88,20 @@ struct ShiftScheduleView: View {
                         Text("\(shift.startTime.formatted(date: .omitted, time: .shortened)) - \(shift.endTime.formatted(date: .omitted, time: .shortened))")
                             .foregroundColor(.gray)
                     }
+                    .swipeActions(edge: .trailing) {
+                        Button(role: .destructive) {
+                            deleteShiftType(shift)
+                        } label: {
+                            Label("删除", systemImage: "trash")
+                        }
+                        
+                        Button {
+                            editShiftType(shift)
+                        } label: {
+                            Label("编辑", systemImage: "pencil")
+                        }
+                        .tint(.blue)
+                    }
                 }
                 
                 Button("添加班次") {
@@ -48,6 +109,7 @@ struct ShiftScheduleView: View {
                 }
             }
             
+            // 排班设置
             if !shiftTypes.isEmpty {
                 Section("排班设置") {
                     ForEach($dailyShifts) { $setting in
@@ -57,7 +119,7 @@ struct ShiftScheduleView: View {
                 
                 Section {
                     Button(action: saveSchedule) {
-                        Text("保存排班")
+                        Text(activeCycle == nil ? "保存新周期" : "更新周期")
                             .frame(maxWidth: .infinity)
                             .foregroundColor(.white)
                     }
@@ -74,9 +136,101 @@ struct ShiftScheduleView: View {
         .sheet(isPresented: $showingAddShiftType) {
             AddShiftTypeView()
         }
+        .alert("删除周期", isPresented: $showingDeleteAlert) {
+            Button("取消", role: .cancel) { }
+            Button("删除", role: .destructive) {
+                deleteCycle()
+            }
+        } message: {
+            Text("确定要删除当前周期吗？此操作不可撤销。")
+        }
         .onAppear {
             initializeSettings()
         }
+    }
+    
+    private func loadCycle(_ cycle: ShiftCycle) {
+        cycleName = cycle.name
+        days = cycle.days
+        startDate = cycle.startDate
+        selectedCycle = cycle
+        
+        dailyShifts = (0..<cycle.days).map { index in
+            let shift = cycle.shifts[safe: cycle.shiftOrder[index]] ?? shiftTypes.first
+            let setting = cycle.dailySettings?.first(where: { $0.dayNumber == index + 1 })
+            
+            return ShiftDailySetting(
+                dayNumber: index + 1,
+                selectedShiftId: shift?.id ?? setting?.selectedShiftId,
+                customStartTime: setting?.customStartTime,
+                customEndTime: setting?.customEndTime,
+                customColor: setting?.customColor
+            )
+        }
+    }
+    
+    private func deleteCycle() {
+        if let cycle = activeCycle {
+            modelContext.delete(cycle)
+            try? modelContext.save()
+            
+            // 重置表单
+            cycleName = "默认周期"
+            days = 5
+            startDate = Date()
+            selectedCycle = nil
+            updateDailyShifts()
+        }
+    }
+    
+    private func deleteShiftType(_ shift: ShiftType) {
+        modelContext.delete(shift)
+        try? modelContext.save()
+    }
+    
+    private func editShiftType(_ shift: ShiftType) {
+        // 实现编辑功能
+    }
+    
+    private func saveSchedule() {
+        // 创建新的班次顺序数组
+        let shiftOrder = dailyShifts.map { setting in
+            shiftTypes.firstIndex(where: { $0.id == setting.selectedShiftId }) ?? 0
+        }
+        
+        if let existingCycle = selectedCycle {
+            // 更新现有周期
+            existingCycle.name = cycleName
+            existingCycle.days = days
+            existingCycle.shifts = shiftTypes
+            existingCycle.shiftOrder = shiftOrder
+            existingCycle.startDate = startDate
+            existingCycle.dailySettings = dailyShifts
+            
+            // 如果是激活的周期，保持激活状态
+            if existingCycle.isActive {
+                existingCycle.isActive = true
+            }
+        } else {
+            // 停用其他周期
+            for cycle in cycles {
+                cycle.isActive = false
+            }
+            
+            // 创建新周期
+            let newCycle = ShiftCycle(
+                name: cycleName,
+                days: days,
+                shifts: shiftTypes,
+                shiftOrder: shiftOrder,
+                startDate: startDate,
+                isActive: true,
+                dailySettings: dailyShifts
+            )
+            modelContext.insert(newCycle)
+        }
+        
+        try? modelContext.save()
     }
     
     private func initializeSettings() {
@@ -116,43 +270,6 @@ struct ShiftScheduleView: View {
                 )
             }
         }
-    }
-    
-    private func saveSchedule() {
-        // 停用其他周期
-        let descriptor = FetchDescriptor<ShiftCycle>()
-        if let allCycles = try? modelContext.fetch(descriptor) {
-            for cycle in allCycles {
-                cycle.isActive = false
-            }
-        }
-        
-        // 创建新的班次顺序数组
-        let shiftOrder = dailyShifts.map { setting in
-            shiftTypes.firstIndex(where: { $0.id == setting.selectedShiftId }) ?? 0
-        }
-        
-        if let existingCycle = activeCycle {
-            // 更新现有周期
-            existingCycle.days = days
-            existingCycle.shifts = shiftTypes
-            existingCycle.shiftOrder = shiftOrder
-            existingCycle.startDate = startDate
-            existingCycle.isActive = true
-        } else {
-            // 创建新周期
-            let newCycle = ShiftCycle(
-                name: "默认周期",
-                days: days,
-                shifts: shiftTypes,
-                shiftOrder: shiftOrder,
-                startDate: startDate,
-                isActive: true
-            )
-            modelContext.insert(newCycle)
-        }
-        
-        try? modelContext.save()
     }
 }
 

@@ -22,27 +22,49 @@ struct ContentView: View {
     private let weekDays = ["Mon", "Tue", "Wen", "Thu", "Fri", "Sat", "Sun"]
     private let months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
     
-    // 获取激活的周期
-    private var activeCycle: ShiftCycle? {
+    var activeCycle: ShiftCycle? {
         cycles.first(where: { $0.isActive })
     }
-    
+
     var body: some View {
-        ZStack {
-            Color(.systemBackground).ignoresSafeArea()
-            
+        NavigationView {
             VStack(spacing: 0) {
                 // 顶部栏
                 HStack {
-                    Button(action: { showingShiftSchedule = true }) {
-                        Image(systemName: "clock.badge.checkmark")
-                            .font(.system(size: 20))
-                            .foregroundColor(.purple)
+//                    Spacer()
+//                    Text(selectedDate.formatted(date: .numeric, time: .omitted))
+//                        .font(.system(size: 15))
+//                        .foregroundColor(.gray)
+//                    Spacer()
+                    
+                    Menu {
+                        ForEach(cycles) { cycle in
+                            Button(action: {
+                                activateCycle(cycle)
+                            }) {
+                                HStack {
+                                    Text(cycle.name)
+                                    if cycle.isActive {
+                                        Image(systemName: "checkmark")
+                                    }
+                                }
+                            }
+                        }
+                        
+                        Divider()
+                        
+                        Button(action: { showingShiftSchedule = true }) {
+                            Label("排班设置", systemImage: "gear")
+                        }
+                    } label: {
+                        HStack(spacing: 5) {
+                            Image(systemName: "clock.badge.checkmark")
+                                .font(.system(size: 20))
+                            Text(activeCycle?.name ?? "选择周期")
+                                .font(.system(size: 15))
+                        }
+                        .foregroundColor(.purple)
                     }
-                    Spacer()
-                    Text(selectedDate.formatted(date: .numeric, time: .omitted))
-                        .font(.system(size: 15))
-                        .foregroundColor(.gray)
                     Spacer()
                     Button(action: { showingSettings = true }) {
                         Image(systemName: "gearshape")
@@ -52,145 +74,58 @@ struct ContentView: View {
                 .padding(.horizontal)
                 .padding(.vertical, 8)
                 
-                // 月份滑动选择器
-                ScrollViewReader { proxy in
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 25) {
-                            ForEach(-1...1, id: \.self) { offset in
-                                if let date = calendar.date(byAdding: .month, value: offset, to: selectedDate) {
-                                    Text(monthString(from: date))
-                                        .font(.system(size: 28, weight: offset == 0 ? .bold : .regular))
-                                        .foregroundColor(offset == 0 ? .purple : .gray.opacity(0.5))
-                                        .id(offset)
-                                        .onTapGesture {
-                                            withAnimation {
-                                                selectedDate = date
-                                            }
-                                        }
-                                }
-                            }
-                        }
-                        .padding(.horizontal, 30)
-                    }
-                }
-                .padding(.vertical, 10)
-                
-                // 星期标题行
-                HStack(spacing: 0) {
-                    ForEach(weekDays, id: \.self) { day in
-                        Text(day)
-                            .font(.system(size: 13))
-                            .frame(maxWidth: .infinity)
-                            .foregroundColor(.gray)
-                    }
-                }
-                .padding(.top, 20)
-                .padding(.bottom, 10)
-                
-                // 日历网格
-                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 0), count: 7), spacing: 5) {
-                    ForEach(daysInMonth(), id: \.self) { date in
-                        if let date = date {
-                            DayCell(date: date,
-                                   isSelected: isDateInSelectedRange(date),
-                                   isToday: calendar.isDateInToday(date),
-                                   events: eventsForDate(date),
-                                   shift: getShiftForDate(date))
-                                .onTapGesture {
-                                    withAnimation {
-                                        selectedDate = date
-                                        selectedEvents = eventsForDate(date)
-                                    }
-                                }
-                        } else {
-                            Color.clear
-                                .aspectRatio(1, contentMode: .fill)
-                        }
-                    }
-                }
-                .padding(.horizontal)
-                
-                Divider()
-                    .padding(.vertical)
-                
-                // 选中日期的事件列表
-                if !selectedEvents.isEmpty {
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text(selectedDate.formatted(date: .complete, time: .omitted))
-                            .font(.headline)
-                            .foregroundColor(.gray)
+                // 日历部分
+                ScrollView {
+                    VStack(spacing: 20) {
+                        // 月份选择器
+                        MonthSelectorView(selectedDate: $selectedDate)
                         
-                        ForEach(selectedEvents) { event in
-                            HStack(spacing: 15) {
-                                VStack(alignment: .leading) {
-                                    Text(event.title)
-                                        .font(.system(size: 16, weight: .medium))
-                                    Text(event.date.formatted(date: .omitted, time: .shortened))
-                                        .font(.system(size: 14))
-                                        .foregroundColor(.gray)
-                                }
-                                
-                                Spacer()
-                                
-                                if let location = event.location {
-                                    HStack {
-                                        Image(systemName: "location.fill")
-                                            .foregroundColor(.blue)
-                                        Text(location)
-                                            .font(.system(size: 14))
-                                            .foregroundColor(.gray)
+                        // 星期标题
+                        WeekdayHeaderView()
+                        
+                        // 日历网格
+                        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 0), count: 7), spacing: 5) {
+                            ForEach(daysInMonth(), id: \.self) { date in
+                                if let date = date {
+                                    DayCell(
+                                        date: date,
+                                        isSelected: calendar.isDate(date, inSameDayAs: selectedDate),
+                                        isToday: calendar.isDateInToday(date),
+                                        events: eventsForDate(date),
+                                        shift: getShiftForDate(date)
+                                    )
+                                    .onTapGesture {
+                                        withAnimation {
+                                            selectedDate = date
+                                            selectedEvents = eventsForDate(date)
+                                        }
                                     }
+                                } else {
+                                    Color.clear
+                                        .aspectRatio(1, contentMode: .fill)
                                 }
                             }
-                            .padding(.vertical, 8)
-                            .padding(.horizontal)
-                            .background(Color.purple.opacity(0.1))
-                            .cornerRadius(8)
+                        }
+                        .padding(.horizontal)
+                        
+                        // 选中日期的事件列表
+                        if !selectedEvents.isEmpty {
+                            EventListView(events: selectedEvents)
+                                .padding()
                         }
                     }
-                    .padding(.horizontal)
                 }
                 
-                // 今日计划
-                if let todayEvent = todayEvents.first {
-                    TodayPlanView(event: todayEvent)
-                        .padding(.horizontal)
+                // 添加事件按钮
+                Button(action: { showingAddEvent = true }) {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.system(size: 50))
+                        .foregroundColor(.purple)
+                        .shadow(radius: 2)
                 }
-                
-                // 即将到来的计划
-                VStack(alignment: .leading, spacing: 15) {
-                    Text("Upcoming plan (\(upcomingEvents.count))")
-                        .font(.headline)
-                        .foregroundColor(.gray)
-                        .padding(.horizontal)
-                    
-                    ForEach(upcomingEvents) { event in
-                        UpcomingEventRow(event: event)
-                    }
-                }
-                .padding(.top)
-                
-                Spacer(minLength: 80)
+                .padding(.bottom)
             }
-            
-            // 悬浮添加按钮
-            VStack {
-                Spacer()
-                HStack {
-                    Spacer()
-                    Button(action: { showingAddEvent = true }) {
-                        Image(systemName: "plus")
-                            .font(.title3.weight(.semibold))
-                            .foregroundColor(.white)
-                            .frame(width: 55, height: 55)
-                            .background(Color.purple)
-                            .clipShape(Circle())
-                            .shadow(color: .purple.opacity(0.3), radius: 5, x: 0, y: 3)
-                    }
-                    .padding(.trailing, 25)
-                    .padding(.bottom, 25)
-                }
-            }
+            .navigationBarHidden(true)
         }
         .sheet(isPresented: $showingAddEvent) {
             AddEventView()
@@ -199,7 +134,9 @@ struct ContentView: View {
             SettingsView()
         }
         .sheet(isPresented: $showingShiftSchedule) {
-            ShiftScheduleView()
+            NavigationView {
+                ShiftScheduleView()
+            }
         }
         .onAppear {
             // 初始化选中日期的事件
@@ -207,9 +144,18 @@ struct ContentView: View {
         }
     }
     
+    private func activateCycle(_ selectedCycle: ShiftCycle) {
+        // 停用其他周期
+        for cycle in cycles {
+            cycle.isActive = (cycle.id == selectedCycle.id)
+        }
+        try? modelContext.save()
+    }
+    
     private func monthString(from date: Date) -> String {
-        let month = calendar.component(.month, from: date)
-        return months[month-1]
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMMM yyyy"
+        return formatter.string(from: date)
     }
     
     private func isDateInSelectedRange(_ date: Date) -> Bool {
@@ -432,6 +378,121 @@ struct SettingsView: View {
             .navigationTitle("Settings")
             .navigationBarItems(trailing: Button("Done") { dismiss() })
         }
+    }
+}
+
+// 月份选择器视图
+struct MonthSelectorView: View {
+    @Binding var selectedDate: Date
+    private let calendar = Calendar.current
+    private let months = ["一月", "二月", "三月", "四月", "五月", "六月", "七月", "八月", "九月", "十月", "十一月", "十二月"]
+    
+    var body: some View {
+        HStack(spacing: 20) {
+            Button(action: previousMonth) {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 20, weight: .medium))
+                    .foregroundColor(.gray)
+            }
+            
+            Text(formattedDate)
+                .font(.system(size: 20, weight: .medium))
+                .frame(width: 150)
+                .animation(.none, value: selectedDate)
+            
+            Button(action: nextMonth) {
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 20, weight: .medium))
+                    .foregroundColor(.gray)
+            }
+        }
+        .padding(.vertical, 10)
+    }
+    
+    private var formattedDate: String {
+        let year = calendar.component(.year, from: selectedDate)
+        let month = calendar.component(.month, from: selectedDate)
+        return "\(months[month-1]) \(year)"
+    }
+    
+    private func previousMonth() {
+        withAnimation {
+            if let newDate = calendar.date(byAdding: .month, value: -1, to: selectedDate) {
+                selectedDate = newDate
+            }
+        }
+    }
+    
+    private func nextMonth() {
+        withAnimation {
+            if let newDate = calendar.date(byAdding: .month, value: 1, to: selectedDate) {
+                selectedDate = newDate
+            }
+        }
+    }
+}
+
+// 星期标题视图
+struct WeekdayHeaderView: View {
+    private let weekDays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+    
+    var body: some View {
+        HStack(spacing: 0) {
+            ForEach(weekDays, id: \.self) { day in
+                Text(day)
+                    .font(.system(size: 13))
+                    .frame(maxWidth: .infinity)
+                    .foregroundColor(.gray)
+            }
+        }
+        .padding(.top, 10)
+        .padding(.bottom, 10)
+    }
+}
+
+// 事件列表视图
+struct EventListView: View {
+    let events: [Event]
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            ForEach(events) { event in
+                EventRow(event: event)
+            }
+        }
+    }
+}
+
+// 单个事件行视图
+struct EventRow: View {
+    let event: Event
+    
+    var body: some View {
+        HStack(spacing: 15) {
+            VStack(alignment: .leading) {
+                Text(event.title)
+                    .font(.system(size: 16, weight: .medium))
+                Text(event.date.formatted(date: .omitted, time: .shortened))
+                    .font(.system(size: 14))
+                    .foregroundColor(.gray)
+            }
+            
+            Spacer()
+            
+            if let location = event.location {
+                HStack {
+                    Image(systemName: "location.fill")
+                        .foregroundColor(.blue)
+                    Text(location)
+                        .font(.system(size: 14))
+                        .foregroundColor(.gray)
+                }
+            }
+        }
+        .padding(.vertical, 8)
+        .padding(.horizontal)
+        .background(Color.purple.opacity(0.1))
+        .cornerRadius(8)
     }
 }
 
