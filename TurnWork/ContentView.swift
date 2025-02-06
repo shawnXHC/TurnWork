@@ -29,51 +29,6 @@ struct ContentView: View {
     var body: some View {
         NavigationView {
             VStack(spacing: 0) {
-                // 顶部栏
-                HStack {
-//                    Spacer()
-//                    Text(selectedDate.formatted(date: .numeric, time: .omitted))
-//                        .font(.system(size: 15))
-//                        .foregroundColor(.gray)
-//                    Spacer()
-                    
-                    Menu {
-                        ForEach(cycles) { cycle in
-                            Button(action: {
-                                activateCycle(cycle)
-                            }) {
-                                HStack {
-                                    Text(cycle.name)
-                                    if cycle.isActive {
-                                        Image(systemName: "checkmark")
-                                    }
-                                }
-                            }
-                        }
-                        
-                        Divider()
-                        
-                        Button(action: { showingShiftSchedule = true }) {
-                            Label("排班设置", systemImage: "gear")
-                        }
-                    } label: {
-                        HStack(spacing: 5) {
-                            Image(systemName: "clock.badge.checkmark")
-                                .font(.system(size: 20))
-                            Text(activeCycle?.name ?? "选择周期")
-                                .font(.system(size: 15))
-                        }
-                        .foregroundColor(.purple)
-                    }
-                    Spacer()
-                    Button(action: { showingSettings = true }) {
-                        Image(systemName: "gearshape")
-                            .foregroundColor(.gray)
-                    }
-                }
-                .padding(.horizontal)
-                .padding(.vertical, 8)
-                
                 // 日历部分
                 ScrollView {
                     VStack(spacing: 20) {
@@ -125,7 +80,46 @@ struct ContentView: View {
                 }
                 .padding(.bottom)
             }
-            .navigationBarHidden(true)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Menu {
+                        ForEach(cycles) { cycle in
+                            Button(action: {
+                                activateCycle(cycle)
+                            }) {
+                                HStack {
+                                    Text(cycle.name)
+                                    if cycle.isActive {
+                                        Image(systemName: "checkmark")
+                                    }
+                                }
+                            }
+                        }
+                        
+                        Divider()
+                        
+                        Button(action: { showingShiftSchedule = true }) {
+                            Label("排班设置", systemImage: "gear")
+                        }
+                    } label: {
+                        HStack(spacing: 5) {
+                            Image(systemName: "clock.badge.checkmark")
+                                .font(.system(size: 20))
+                            Text(activeCycle?.name ?? "选择周期")
+                                .font(.system(size: 15))
+                        }
+                        .foregroundColor(.purple)
+                    }
+                }
+                
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(action: { showingSettings = true }) {
+                        Image(systemName: "gearshape")
+                            .foregroundColor(.gray)
+                    }
+                }
+            }
         }
         .sheet(isPresented: $showingAddEvent) {
             AddEventView()
@@ -246,73 +240,57 @@ struct DayCell: View {
     
     var body: some View {
         VStack(spacing: 2) {
-            ZStack {
+            VStack {
                 // 阳历日期
                 Text("\(calendar.component(.day, from: date))")
-                    .font(.system(size: 15))
+                    .font(.system(size: 18))
                     .fontWeight(isSelected || isToday ? .medium : .regular)
                     .foregroundColor(isSelected ? .white : isToday ? .purple : .primary)
-                    .frame(width: 30, height: 30)
-                    .background(
-                        Group {
-                            if isSelected {
-                                Capsule().fill(Color.purple)
-                            } else if isToday {
-                                Capsule().stroke(Color.purple, lineWidth: 1)
-                            }
-                        }
-                    )
-                
-                // 节日角标
-                if let festival = chineseCalendar.getFestival(date) {
-                    Text(festival)
-                        .font(.system(size: 8))
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 4)
-                        .padding(.vertical, 2)
-                        .background(Color.red)
-                        .cornerRadius(4)
-                        .offset(x: 12, y: -12)
-                }
+ 
+                // 农历日期
+                Text(chineseCalendar.getLunarDate(date))
+                    .font(.system(size: 8))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.5)
+                    .foregroundColor(isSelected ? .white : isToday ? .purple : .primary)
             }
-            
-            // 农历日期
-            Text(chineseCalendar.getLunarDate(date))
-                .font(.system(size: 10))
-                .foregroundColor(.secondary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.5)
+            .frame(width: 35, height: 35)
+            .background(
+                Group {
+                    if isSelected {
+                        Capsule().fill(Color.purple.opacity(0.8))
+                    } else if isToday {
+                        Capsule().stroke(Color.purple, lineWidth: 1)
+                    }
+                }
+            )
+
             
             // 班次显示
             if let shiftInfo = shift, let shift = shiftInfo.shift {
                 Text(shift.name)
                     .font(.system(size: 9))
-                    .foregroundColor(shiftInfo.color ?? shift.displayColor)
+//                    .foregroundColor(shiftInfo.color ?? shift.displayColor)
+                    .foregroundColor(.white)
                     .padding(.horizontal, 4)
-                    .padding(.vertical, 1)
-                    .background((shiftInfo.color ?? shift.displayColor).opacity(0.1))
-                    .cornerRadius(2)
-            }
-            
-            // 事件指示器
-            if !events.isEmpty {
-                HStack(spacing: 2) {
-                    ForEach(Array(events.prefix(2))) { event in
-                        RoundedRectangle(cornerRadius: 2)
-                            .fill(Color.purple.opacity(0.8))
-                            .frame(height: 3)
-                    }
-                    if events.count > 2 {
-                        Text("+\(events.count - 2)")
-                            .font(.system(size: 8))
-                            .foregroundColor(.purple)
-                    }
-                }
-                .frame(width: 30)
+                    .padding(.vertical, 2)
+                    .background((shiftInfo.color ?? shift.displayColor).opacity(0.7))
+                    .cornerRadius(3)
+                    .fontWeight(.bold)
             }
         }
         .frame(height: 70)
         .contentShape(Rectangle())
+        .overlay(alignment: .topTrailing) {
+            // 节日角标
+            if let festival = chineseCalendar.getFestival(date) {
+                Text(festival)
+                    .font(.system(size: 8))
+                    .foregroundColor(.red)
+                    .padding(2)
+                    .offset(x: 10, y: -2)
+            }
+        }
     }
 }
 
@@ -406,7 +384,7 @@ struct MonthSelectorView: View {
                     .foregroundColor(.gray)
             }
         }
-        .padding(.vertical, 10)
+        .padding(.vertical, 2)
     }
     
     private var formattedDate: String {
@@ -445,8 +423,8 @@ struct WeekdayHeaderView: View {
                     .foregroundColor(.gray)
             }
         }
-        .padding(.top, 10)
-        .padding(.bottom, 10)
+        .padding(.top, 0)
+        .padding(.bottom, 0)
     }
 }
 
