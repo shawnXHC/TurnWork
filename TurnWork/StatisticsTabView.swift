@@ -4,6 +4,7 @@ import Charts
 
 struct StatisticsTabView: View {
     @Query private var cycles: [ShiftCycle]
+    @Query private var shiftTypes: [ShiftType]
     @State private var selectedTimeRange: TimeRange = .month
     @State private var startDate: Date
     @State private var endDate: Date
@@ -100,6 +101,14 @@ struct StatisticsTabView: View {
             endDate = calendar.date(from: endComponents) ?? now
         }
     }
+    
+    // 添加获取班次颜色的辅助方法
+    private func getShiftColor(_ shiftName: String) -> Color {
+        if let shiftType = shiftTypes.first(where: { $0.name == shiftName }) {
+            return shiftType.displayColor
+        }
+        return .gray
+    }
 }
 
 // 总览卡片视图
@@ -125,6 +134,7 @@ struct StatisticsOverviewCard: View {
 // 班次统计柱状图
 struct ShiftCountBarChart: View {
     let statistics: ShiftStatistics
+    @Query private var shiftTypes: [ShiftType]
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -139,7 +149,7 @@ struct ShiftCountBarChart: View {
                         x: .value("Type", shiftName),
                         y: .value("Count", count)
                     )
-                    .foregroundStyle(by: .value("Type", shiftName))
+                    .foregroundStyle(getShiftColor(shiftName))
                     .cornerRadius(6)
                     .annotation(position: .top, alignment: .top, spacing: 4) {
                         Text("\(count)次")
@@ -173,11 +183,20 @@ struct ShiftCountBarChart: View {
         .cornerRadius(12)
         .shadow(color: .gray.opacity(0.2), radius: 5)
     }
+    
+    // 添加获取班次颜色的辅助方法
+    private func getShiftColor(_ shiftName: String) -> Color {
+        if let shiftType = shiftTypes.first(where: { $0.name == shiftName }) {
+            return shiftType.displayColor
+        }
+        return .gray
+    }
 }
 
 // 添加饼图组件
 struct ShiftDistributionPieChart: View {
     let statistics: ShiftStatistics
+    @Query private var shiftTypes: [ShiftType]
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -193,7 +212,7 @@ struct ShiftDistributionPieChart: View {
                             innerRadius: .ratio(0.6),
                             angularInset: 1.5
                         )
-                        .foregroundStyle(by: .value("Type", shiftName))
+                        .foregroundStyle(getShiftColor(shiftName))
                     }
                 }
                 .frame(width: 180, height: 180)
@@ -207,9 +226,7 @@ struct ShiftDistributionPieChart: View {
                         
                         HStack(spacing: 8) {
                             Circle()
-                                .fill(Color(hue: Double(statistics.shiftCounts.keys.sorted().firstIndex(of: shiftName)!) / Double(statistics.shiftCounts.count), 
-                                      saturation: 0.5, 
-                                      brightness: 0.8))
+                                .fill(getShiftColor(shiftName))
                                 .frame(width: 8, height: 8)
                             
                             Text(shiftName)
@@ -234,6 +251,14 @@ struct ShiftDistributionPieChart: View {
         .background(Color(.systemBackground))
         .cornerRadius(12)
         .shadow(color: .gray.opacity(0.2), radius: 5)
+    }
+    
+    // 添加获取班次颜色的辅助方法
+    private func getShiftColor(_ shiftName: String) -> Color {
+        if let shiftType = shiftTypes.first(where: { $0.name == shiftName }) {
+            return shiftType.displayColor
+        }
+        return .gray
     }
 }
 

@@ -49,36 +49,10 @@ struct ProfileView: View {
                         )
                     }
                     
-                    NavigationLink(destination: Text("工作记录")) {
-                        ProfileRowView(
-                            icon: "calendar.badge.clock",
-                            iconColor: .blue,
-                            title: "工作记录"
-                        )
-                    }
-                    
-                    Button {
-                        exportData()
-                    } label: {
-                        ProfileRowView(
-                            icon: "square.and.arrow.up.fill",
-                            iconColor: .green,
-                            title: "导出统计",
-                            showChevron: true
-                        )
-                    }
                 }
                 
                 // 系统设置
                 Section {
-                    NavigationLink(destination: Text("设置页面")) {
-                        ProfileRowView(
-                            icon: "gearshape.fill",
-                            iconColor: .gray,
-                            title: "设置"
-                        )
-                    }
-                    
                     NavigationLink(destination: Text("关于页面")) {
                         ProfileRowView(
                             icon: "info.circle.fill",

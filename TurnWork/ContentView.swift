@@ -14,7 +14,6 @@ struct ContentView: View {
     @Query private var cycles: [ShiftCycle]
     @State private var selectedDate = Date()
     @State private var showingAddEvent = false
-    @State private var showingSettings = false
     @State private var selectedEvents: [Event] = []
     @State private var showingShiftSchedule = false
     
@@ -112,20 +111,11 @@ struct ContentView: View {
                         .foregroundColor(.purple)
                     }
                 }
-                
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(action: { showingSettings = true }) {
-                        Image(systemName: "gearshape")
-                            .foregroundColor(.gray)
-                    }
-                }
+            
             }
         }
         .sheet(isPresented: $showingAddEvent) {
             AddEventView()
-        }
-        .sheet(isPresented: $showingSettings) {
-            SettingsView()
         }
         .sheet(isPresented: $showingShiftSchedule) {
             NavigationView {
@@ -345,19 +335,6 @@ struct UpcomingEventRow: View {
     }
 }
 
-struct SettingsView: View {
-    @Environment(\.dismiss) private var dismiss
-    
-    var body: some View {
-        NavigationView {
-            Form {
-                // 添加设置选项
-            }
-            .navigationTitle("Settings")
-            .navigationBarItems(trailing: Button("Done") { dismiss() })
-        }
-    }
-}
 
 // 月份选择器视图
 struct MonthSelectorView: View {
