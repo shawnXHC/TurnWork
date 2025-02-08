@@ -62,6 +62,9 @@ struct StatisticsTabView: View {
                         // 总览卡片
                         StatisticsOverviewCard(statistics: stats)
                         
+                        // 添加饼图
+                        ShiftDistributionPieChart(statistics: stats)
+                        
                         // 班次统计柱状图
                         ShiftCountBarChart(statistics: stats)
                     } else {
@@ -128,37 +131,75 @@ struct ShiftCountBarChart: View {
             Text("班次统计")
                 .font(.headline)
             
-            HStack(alignment: .top, spacing: 20) {
-                // 柱状图
-                Chart {
-                    ForEach(Array(statistics.shiftCounts.keys.sorted()), id: \.self) { shiftName in
-                        let count = statistics.shiftCounts[shiftName, default: 0]
-                        
-                        BarMark(
-                            x: .value("Type", shiftName),
-                            y: .value("Count", count)
-                        )
-                        .foregroundStyle(by: .value("Type", shiftName))
-                        .cornerRadius(6)
-                        .annotation(position: .top, alignment: .top, spacing: 4) {
-                            Text("\(count)")
-                                .font(.system(size: 12, weight: .medium))
+            Chart {
+                ForEach(Array(statistics.shiftCounts.keys.sorted()), id: \.self) { shiftName in
+                    let count = statistics.shiftCounts[shiftName, default: 0]
+                    
+                    BarMark(
+                        x: .value("Type", shiftName),
+                        y: .value("Count", count)
+                    )
+                    .foregroundStyle(by: .value("Type", shiftName))
+                    .cornerRadius(6)
+                    .annotation(position: .top, alignment: .top, spacing: 4) {
+                        Text("\(count)次")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(.secondary)
+                            .padding(.vertical, 4)
+                            .padding(.horizontal, 8)
+                            .background {
+                                Capsule()
+                                    .fill(.white.opacity(0.8))
+                            }
+                    }
+                }
+            }
+            .frame(height: 200)
+            .chartXAxis {
+                AxisMarks { value in
+                    AxisValueLabel {
+                        if let shiftName = value.as(String.self) {
+                            Text(shiftName)
+                                .font(.system(size: 12))
                                 .foregroundColor(.secondary)
-                                .padding(.vertical, 4)
-                                .padding(.horizontal, 8)
-                                .background {
-                                    Capsule()
-                                        .fill(.white.opacity(0.8))
-                                }
                         }
                     }
                 }
-                .frame(height: 200)
-                .chartYAxis(.hidden)
-                .chartXAxis(.hidden)  // 隐藏X轴
+            }
+            .chartYAxis(.hidden)
+        }
+        .padding()
+        .background(Color(.systemBackground))
+        .cornerRadius(12)
+        .shadow(color: .gray.opacity(0.2), radius: 5)
+    }
+}
+
+// 添加饼图组件
+struct ShiftDistributionPieChart: View {
+    let statistics: ShiftStatistics
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("班次分布")
+                .font(.headline)
+            
+            HStack(alignment: .top, spacing: 20) {
+                // 饼图
+                Chart {
+                    ForEach(Array(statistics.shiftCounts.keys.sorted()), id: \.self) { shiftName in
+                        SectorMark(
+                            angle: .value("Count", statistics.shiftCounts[shiftName, default: 0]),
+                            innerRadius: .ratio(0.6),
+                            angularInset: 1.5
+                        )
+                        .foregroundStyle(by: .value("Type", shiftName))
+                    }
+                }
+                .frame(width: 180, height: 180)
                 .chartLegend(.hidden)
                 
-                // 图例
+                // 图例和数据
                 VStack(alignment: .leading, spacing: 12) {
                     ForEach(Array(statistics.shiftCounts.keys.sorted()), id: \.self) { shiftName in
                         let count = statistics.shiftCounts[shiftName, default: 0]
@@ -175,13 +216,18 @@ struct ShiftCountBarChart: View {
                                 .font(.system(size: 12))
                                 .foregroundColor(.primary)
                             
+                            Spacer()
+                            
+                            Text("\(count)次")
+                                .font(.system(size: 12, weight: .medium))
+                            
                             Text(String(format: "%.0f%%", percentage))
                                 .font(.system(size: 12))
                                 .foregroundColor(.secondary)
                         }
                     }
                 }
-                .padding(.top, 20)
+                .padding(.top, 8)
             }
         }
         .padding()

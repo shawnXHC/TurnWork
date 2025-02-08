@@ -412,15 +412,17 @@ struct MonthSelectorView: View {
 
 // 星期标题视图
 struct WeekdayHeaderView: View {
-    private let weekDays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+//    private let weekDays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+    private let weekDays = ["一", "二", "三", "四", "五", "六", "日"]
     
     var body: some View {
         HStack(spacing: 0) {
             ForEach(weekDays, id: \.self) { day in
                 Text(day)
-                    .font(.system(size: 13))
+                    .font(.system(size: 16))
                     .frame(maxWidth: .infinity)
                     .foregroundColor(.gray)
+                    .fontWeight(.bold)
             }
         }
         .padding(.top, 0)
@@ -434,8 +436,11 @@ struct EventListView: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            ForEach(events) { event in
+            ForEach(events,id:\.id) { event in
                 EventRow(event: event)
+            }
+            .onDelete { indexSet in
+                
             }
         }
     }
