@@ -58,13 +58,9 @@ struct ShiftScheduleView: View {
                         }
                         
                         Button {
-//                            withAnimation {
-                                selectedCycle = cycle
-                                cycleEditMode = true
-//                                DispatchQueue.main.async {
-                                showingCycleEdit = true
-//                                }
-//                            }
+                            selectedCycle = cycle
+                            cycleEditMode = true
+                            showingCycleEdit = true
                         } label: {
                             Label("编辑", systemImage: "pencil")
                         }
@@ -73,13 +69,9 @@ struct ShiftScheduleView: View {
                 }
                 
                 Button(action: { 
-                    withAnimation {
-                        selectedCycle = nil
-                        cycleEditMode = false
-                        DispatchQueue.main.async {
-                            showingCycleEdit = true
-                        }
-                    }
+                    selectedCycle = nil
+                    cycleEditMode = false
+                    showingCycleEdit = true
                 }) {
                     Label("新建周期", systemImage: "plus.circle")
                 }
@@ -98,15 +90,17 @@ struct ShiftScheduleView: View {
                 EditShiftTypeView(shiftType: shift)
             }
         }
-        .sheet(isPresented: $showingCycleEdit, onDismiss: {
-//            // 重置状态
-            selectedCycle = nil
-            cycleEditMode = false
-        }) {
-            if cycleEditMode, let cycle = selectedCycle {
+        .sheet(isPresented: $showingCycleEdit) {
+            if let cycle = selectedCycle {
                 CycleEditView(cycle: cycle, isEditing: true)
             } else {
                 CycleEditView(cycle: nil, isEditing: false)
+            }
+        }
+        .onChange(of: showingCycleEdit) { newValue in
+            if !newValue {  // sheet 关闭时
+                selectedCycle = nil
+                cycleEditMode = false
             }
         }
         .alert("删除周期", isPresented: $showingDeleteAlert) {
