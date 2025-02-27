@@ -50,6 +50,32 @@ struct AllCyclesView: View {
         )
     }
     
+    // 修改列宽计算逻辑
+    private var columnWidth: CGFloat {
+        // 基础宽度，根据设备宽度和列数计算
+        let baseWidth = UIScreen.main.bounds.width
+        let dateColumnWidth: CGFloat = 50 // 日期列固定宽度
+        let spacing: CGFloat = 0 // 列间距
+        let safeAreaInsets: CGFloat = 20 // 安全区域边距
+        
+        // 计算剩余可用宽度
+        let availableWidth = baseWidth - dateColumnWidth - safeAreaInsets
+        
+        if cycles.isEmpty {
+            return availableWidth
+        }
+        
+        // 当列数少于3时，平均分配宽度
+        if cycles.count <= 3 {
+            return availableWidth / CGFloat(max(1, cycles.count))
+        }
+        
+        // 列数较多时，设置最小和最大宽度限制
+        let minWidth: CGFloat = 80
+        let calculatedWidth = max(minWidth, availableWidth / CGFloat(cycles.count))
+        return min(calculatedWidth, 120)
+    }
+    
     var body: some View {
         VStack(spacing: 0) {
             // 月份选择器
@@ -103,6 +129,8 @@ struct AllCyclesView: View {
                                 Text(cycle.name)
                                     .font(.headline)
                                     .foregroundColor(cycle.isActive ? .blue : .primary)
+                                    .lineLimit(1)
+                                    .minimumScaleFactor(0.8)
                                 if cycle.isActive {
                                     Text("使用中")
                                         .font(.caption2)
@@ -115,7 +143,7 @@ struct AllCyclesView: View {
                                         )
                                 }
                             }
-                            .frame(width: 80)
+                            .frame(width: columnWidth)
                             .padding(.vertical, 8)
                             .background(
                                 Rectangle()
@@ -146,8 +174,10 @@ struct AllCyclesView: View {
                                                     .frame(width: 8, height: 8)
                                                 Text(shiftType.name)
                                                     .font(.system(size: 14, weight: .medium))
+                                                    .lineLimit(1)
+                                                    .minimumScaleFactor(0.8)
                                             }
-                                            .frame(width: 80)
+                                            .frame(width: columnWidth)
                                             .padding(.vertical, 8)
                                             .background(
                                                 Rectangle()
@@ -160,7 +190,7 @@ struct AllCyclesView: View {
                                         } else {
                                             Text("-")
                                                 .foregroundColor(.gray)
-                                                .frame(width: 80)
+                                                .frame(width: columnWidth)
                                                 .padding(.vertical, 8)
                                                 .background(Color(.systemBackground))
                                         }
@@ -218,7 +248,7 @@ struct AboutView: View {
                         .font(.title.bold())
                         .foregroundColor(.primary)
                     
-                    Text("Version 1.0.0")
+                    Text("Version 1.2.0")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                 }

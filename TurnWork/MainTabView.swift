@@ -17,11 +17,17 @@ struct MainTabView: View {
                 }
                 .tag(1)
             
+            AlarmView()
+                .tabItem {
+                    Label("闹钟", systemImage: "alarm.fill")
+                }
+                .tag(2)
+            
             ProfileView()
                 .tabItem {
                     Label("我的", systemImage: "person.circle")
                 }
-                .tag(2)
+                .tag(3)
         }
     }
 } 

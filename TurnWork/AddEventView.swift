@@ -13,15 +13,15 @@ struct AddEventView: View {
     var body: some View {
         NavigationView {
             Form {
-                TextField("Title", text: $title)
-                DatePicker("Date", selection: $date)
-                TextField("Location", text: $location)
-                TextField("Notes", text: $notes)
+                TextField("标题", text: $title)
+                DatePicker("日期", selection: $date)
+                TextField("位置", text: $location)
+                TextField("备注", text: $notes)
             }
-            .navigationTitle("New Event")
+            .navigationTitle("新建事项")
             .navigationBarItems(
-                leading: Button("Cancel") { dismiss() },
-                trailing: Button("Add") {
+                leading: Button("取消") { dismiss() },
+                trailing: Button("保存") {
                     addEvent()
                     dismiss()
                 }

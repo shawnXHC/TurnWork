@@ -16,9 +16,11 @@ struct ContentView: View {
     @State private var showingAddEvent = false
     @State private var selectedEvents: [Event] = []
     @State private var showingShiftSchedule = false
+    @State private var dragOffset = CGSize.zero
+    @State private var isDragging = false
     
     private let calendar = Calendar.current
-    private let weekDays = ["Mon", "Tue", "Wen", "Thu", "Fri", "Sat", "Sun"]
+    private let weekDays = ["一", "二", "三", "四", "五", "六", "日"]
     private let months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
     
     var activeCycle: ShiftCycle? {
@@ -35,10 +37,16 @@ struct ContentView: View {
                         MonthSelectorView(selectedDate: $selectedDate)
                         
                         // 星期标题
-                        WeekdayHeaderView()
-                        
+//                        WeekdayHeaderView()
                         // 日历网格
-                        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 0), count: 7), spacing: 5) {
+                        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 0), count: 7), spacing: 2) {
+                            ForEach(weekDays, id: \.self) { day in
+                                Text(day)
+                                    .font(.system(size: 16))
+                                    .frame(maxWidth: .infinity)
+                                    .foregroundColor(.gray)
+                                    .fontWeight(.bold)
+                            }
                             ForEach(daysInMonth(), id: \.self) { date in
                                 if let date = date {
                                     DayCell(
@@ -61,6 +69,35 @@ struct ContentView: View {
                             }
                         }
                         .padding(.horizontal)
+                        .offset(x: dragOffset.width)
+                        .animation(.interactiveSpring(), value: isDragging)
+                        .gesture(
+                            DragGesture()
+                                .onChanged { gesture in
+                                    isDragging = true
+                                    dragOffset = gesture.translation
+                                }
+                                .onEnded { gesture in
+                                    isDragging = false
+                                    let threshold: CGFloat = 50
+                                    let velocity = gesture.predictedEndLocation.x - gesture.location.x
+                                    
+                                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                                        if gesture.translation.width > threshold || velocity > 300 {
+                                            // 向右滑动，上一个月
+                                            if let newDate = calendar.date(byAdding: .month, value: -1, to: selectedDate) {
+                                                selectedDate = newDate
+                                            }
+                                        } else if gesture.translation.width < -threshold || velocity < -300 {
+                                            // 向左滑动，下一个月
+                                            if let newDate = calendar.date(byAdding: .month, value: 1, to: selectedDate) {
+                                                selectedDate = newDate
+                                            }
+                                        }
+                                        dragOffset = .zero
+                                    }
+                                }
+                        )
                         
                         // 选中日期的事件列表
                         if !selectedEvents.isEmpty {
@@ -388,24 +425,23 @@ struct MonthSelectorView: View {
 }
 
 // 星期标题视图
-struct WeekdayHeaderView: View {
-//    private let weekDays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
-    private let weekDays = ["一", "二", "三", "四", "五", "六", "日"]
-    
-    var body: some View {
-        HStack(spacing: 0) {
-            ForEach(weekDays, id: \.self) { day in
-                Text(day)
-                    .font(.system(size: 16))
-                    .frame(maxWidth: .infinity)
-                    .foregroundColor(.gray)
-                    .fontWeight(.bold)
-            }
-        }
-        .padding(.top, 0)
-        .padding(.bottom, 0)
-    }
-}
+//struct WeekdayHeaderView: View {
+//    private let weekDays = ["一", "二", "三", "四", "五", "六", "日"]
+//    
+//    var body: some View {
+//        HStack(spacing: 5) {
+//            ForEach(weekDays, id: \.self) { day in
+//                Text(day)
+//                    .font(.system(size: 16))
+//                    .frame(maxWidth: .infinity)
+//                    .foregroundColor(.gray)
+//                    .fontWeight(.bold)
+//            }
+//        }
+//        .padding(.top, 0)
+//        .padding(.bottom, 0)
+//    }
+//}
 
 // 事件列表视图
 struct EventListView: View {
@@ -423,15 +459,32 @@ struct EventListView: View {
     }
 }
 
-// 单个事件行视图
+// 事项行视图
 struct EventRow: View {
+    @Environment(\.modelContext) private var modelContext
     let event: Event
     
     var body: some View {
         HStack(spacing: 15) {
+            // 完成状态按钮
+            Button(action: {
+                withAnimation {
+                    toggleComplete()
+                }
+            }) {
+                Image(systemName: event.isCompleted ? "checkmark.circle.fill" : "circle")
+                    .font(.system(size: 22))
+                    .foregroundColor(event.isCompleted ? .green : .gray)
+            }
+            .buttonStyle(.plain)
+            
+            // 事项内容
             VStack(alignment: .leading) {
                 Text(event.title)
                     .font(.system(size: 16, weight: .medium))
+                    .foregroundColor(event.isCompleted ? .secondary : .primary)
+                    .strikethrough(event.isCompleted)
+                
                 Text(event.date.formatted(date: .omitted, time: .shortened))
                     .font(.system(size: 14))
                     .foregroundColor(.gray)
@@ -439,6 +492,7 @@ struct EventRow: View {
             
             Spacer()
             
+            // 位置信息
             if let location = event.location {
                 HStack {
                     Image(systemName: "location.fill")
@@ -451,8 +505,54 @@ struct EventRow: View {
         }
         .padding(.vertical, 8)
         .padding(.horizontal)
-        .background(Color.purple.opacity(0.1))
-        .cornerRadius(8)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(event.isCompleted ? Color.green.opacity(0.1) : Color.purple.opacity(0.1))
+        )
+        .contextMenu {
+            Button(role: .destructive) {
+                deleteEvent()
+            } label: {
+                Label("删除事项", systemImage: "trash")
+            }
+            
+            Button {
+                toggleComplete()
+            } label: {
+                if event.isCompleted {
+                    Label("标记为未完成", systemImage: "xmark.circle")
+                } else {
+                    Label("标记为已完成", systemImage: "checkmark.circle")
+                }
+            }
+        }
+        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+            Button(role: .destructive) {
+                deleteEvent()
+            } label: {
+                Label("删除", systemImage: "trash")
+            }
+            
+            Button {
+                toggleComplete()
+            } label: {
+                Label(
+                    event.isCompleted ? "未完成" : "完成",
+                    systemImage: event.isCompleted ? "xmark.circle" : "checkmark.circle"
+                )
+            }
+            .tint(event.isCompleted ? .orange : .green)
+        }
+    }
+    
+    private func toggleComplete() {
+        event.isCompleted.toggle()
+        try? modelContext.save()
+    }
+    
+    private func deleteEvent() {
+        modelContext.delete(event)
+        try? modelContext.save()
     }
 }
 
@@ -460,3 +560,4 @@ struct EventRow: View {
     ContentView()
         .modelContainer(for: Event.self, inMemory: true)
 }
+
